@@ -187,18 +187,21 @@ if __name__=='__main__':
     #print(get_time_stamp('2021-02-24 00:00:00'))
 
     from sys import argv
-    hs300file = ""
+    hsstocks = ""
     if len(argv) > 1:
-        hs300file = argv[1]
+        hsstocks = argv[1]
     else:
-        print("please run like 'python Tobinsq.py [hs300file]'")
+        print("please run like 'python Tobinsq.py [*|002230]'")
         exit(1)
 
 
-    stockarry = ['002230']
-    #index_stock_cons_df = ak.index_stock_cons(index="000300")
-    #stockarry = index_stock_cons_df['品种代码'].values.tolist()[0::]
-
+    stockarry = []
+    if hsstocks == '*':
+        index_stock_cons_df = ak.index_stock_cons(index="000300")
+        stockarry = index_stock_cons_df['品种代码'].values.tolist()[0::]
+    else:
+        stockarry = [stock for stock in argv[1:]]
+    print("stock arrary:",stockarry)
 
     timepath = r'./time.xls'
     mises_global_df = init_global_misesq_df(timepath)
@@ -249,12 +252,12 @@ if __name__=='__main__':
 
 
 
-    x_data  =  mises_global_df.index.values.tolist()
+    x_data  =  [ dt[2:] for dt in mises_global_df.index.values.tolist() ]
     y_data  =  mises_global_df['全局均值比'].tolist()
     y_data2 = mises_global_df['历史均值比'].tolist()
 
     plt.plot(x_data,y_data,color='red',linewidth=2.0,linestyle='--')
-    plt.plot(x_data,y_data2,color='blue',linewidth=3.0,linestyle='-.')
+    plt.plot(x_data,y_data2,color='blue',linewidth=3.0,linestyle='--')
     plt.xticks(range(len(x_data)),x_data,rotation=270)
     #plt.show()
     imagepath =  r'./misespig.png'
