@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import openpyxl
 import time, datetime
 import xlsxwriter
+from matplotlib.pyplot import MultipleLocator
 
 
 def get_akshare_stock_financial(xlsfile,stock):
@@ -98,7 +99,10 @@ def get_time_stamp(date):
 def calc_value_tobinsq(row):
     fintotal = np.sum(row[0::2])
     mvtotal = np.sum(row[1::2])
-    return mvtotal/fintotal
+    if fintotal == 0:
+        return 0
+    else:
+        return mvtotal/fintotal
 
 
 
@@ -156,6 +160,8 @@ def calc_stock_finmv_df(stock):
 
 
             mises_stock_df = stock_financial_abstract_df[stock_financial_abstract_df[mvtotalcol] != 0][[findatecol,fintotalcol,mvtotalcol]]
+            #滤除>50 的数据,民生2008年9月数据可能有问题
+            mises_stock_df = mises_stock_df[(mises_stock_df[mvtotalcol] / mises_stock_df[fintotalcol]) < 50 ][[findatecol,fintotalcol,mvtotalcol]]
             latestmv = get_latest30_marketvalue(stock_a_indicator_df,'trade_date','total_mv')
             bget = True;
     except IOError:
@@ -197,7 +203,8 @@ if __name__=='__main__':
 
     stockarry = []
     if hsstocks == '*':
-        index_stock_cons_df = ak.index_stock_cons(index="000300")
+        #index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
+        index_stock_cons_df = ak.index_stock_cons(index="000947")#内地银行
         stockarry = index_stock_cons_df['品种代码'].values.tolist()[0::]
     else:
         stockarry = [stock for stock in argv[1:]]
@@ -257,8 +264,20 @@ if __name__=='__main__':
     y_data2 = mises_global_df['历史均值比'].tolist()
 
     plt.plot(x_data,y_data,color='red',linewidth=2.0,linestyle='--')
-    plt.plot(x_data,y_data2,color='blue',linewidth=3.0,linestyle='--')
+    plt.plot(x_data,y_data2,color='blue',linewidth=2.0,linestyle='--')
     plt.xticks(range(len(x_data)),x_data,rotation=270)
+    plt.xlabel('time',fontsize=10)
+    plt.ylabel('hisratio',fontsize=10)
+
+    x_major_locator=MultipleLocator(1)
+    y_major_locator=MultipleLocator(0.1)
+    ax=plt.gca()
+    ax.xaxis.set_major_locator(x_major_locator)
+    ax.yaxis.set_major_locator(y_major_locator)
+    miny = min(min(y_data),min(y_data2)) - 0.1
+    maxy = max(max(y_data),max(y_data2)) + 0.1
+    plt.ylim(miny, maxy)
+
     #plt.show()
     imagepath =  r'./misespig.png'
     plt.savefig(imagepath)
