@@ -176,7 +176,7 @@ def init_global_misesq_df(timepath):
     isExist = os.path.exists(timepath)
     if not isExist:
         print("time path not exist:%s" % (timepath))
-        return df.empty
+        return pd.DataFrame()
     else:
         print("time path exist:%s" % (timepath))
 
@@ -197,7 +197,7 @@ if __name__=='__main__':
     if len(argv) > 1:
         hsstocks = argv[1]
     else:
-        print("please run like 'python Tobinsq.py [*|002230]'")
+        print("please run like 'python Misesq.py [*|002230]'")
         exit(1)
 
 
