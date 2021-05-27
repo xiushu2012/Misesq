@@ -83,7 +83,7 @@ def get_latest30_marketvalue(tradedf,datecolumn,mvcolumn):
 
         if count == 1:
             latest = tup[0]
-        if count > days:
+        if count >= days:
             break
     return (latest,value/days)
 
