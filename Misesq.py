@@ -12,7 +12,6 @@ import time, datetime
 import xlsxwriter
 from matplotlib.pyplot import MultipleLocator
 
-
 def get_akshare_stock_financial(xlsfile,stock):
     try:
         shname='financial'
@@ -134,8 +133,8 @@ def calc_stock_finmv_df(stock):
         else:
             print("AkShareFile:%s exist" % (filefolder))
 
-        fininpath = "%s/%s%s" % (filefolder, stock, '_fin_in.xls')
-        tradeinpath = "%s/%s%s" % (filefolder, stock, '_trade_in.xls')
+        fininpath = "%s/%s%s" % (filefolder, stock, '_fin_in.xlsx')
+        tradeinpath = "%s/%s%s" % (filefolder, stock, '_trade_in.xlsx')
 
         # 总资产22,493,600,000.00元
         finpath, finsheet = get_akshare_stock_financial(fininpath, stock)
@@ -203,14 +202,14 @@ if __name__=='__main__':
 
     stockarry = []
     if hsstocks == '*':
-        #index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
-        index_stock_cons_df = ak.index_stock_cons(index="000947")#内地银行
+        index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
+        #index_stock_cons_df = ak.index_stock_cons(index="000947")#内地银行
         stockarry = index_stock_cons_df['品种代码'].values.tolist()[0::]
     else:
         stockarry = [stock for stock in argv[1:]]
     print("stock arrary:",stockarry)
 
-    timepath = r'./time.xls'
+    timepath = r'./time.xlsx'
     mises_global_df = init_global_misesq_df(timepath)
     lmvlist = []
     ltimelist = []
