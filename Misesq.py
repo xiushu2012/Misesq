@@ -184,8 +184,31 @@ def init_global_misesq_df(timepath):
     return time_df
 
 
+def get_laststock_set(hs300,datadir):
+    allset = set()
+    if os.path.exists(hs300):
+        input = open(hs300,'r')
+        allset = set([stock.rstrip() for stock in input.readlines()])
+    else:
+        index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
+        allset = set(index_stock_cons_df['品种代码'].values.tolist()[0::])
+
+    print(len(allset),allset)
+
+    existset = set()
+    if os.path.exists(datadir):
+        filelist = os.listdir(datadir)
+        existset = set([stock.split('_')[0] for stock in filelist])
+
+    lastset = allset - existset
 
 
+    if len(lastset) > 0:
+        for stock in lastset:
+            bget,mises_stock_df,latestmv = calc_stock_finmv_df(stock)
+            if bget is False: print("get empty DataFrame:%s" % stock)
+
+    return allset,lastset
 
 
 if __name__=='__main__':
@@ -200,14 +223,16 @@ if __name__=='__main__':
         exit(1)
 
 
-    stockarry = []
+    stockset = set()
     if hsstocks == '*':
-        index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
-        #index_stock_cons_df = ak.index_stock_cons(index="000947")#内地银行
-        stockarry = index_stock_cons_df['品种代码'].values.tolist()[0::]
+        hs300 = './hs300.txt';datadir = './data'
+        stockset,lastset = get_laststock_set(hs300, datadir)
+        if len(lastset) >0 :
+            print("stock data is not complete",lastset)
+            #exit(1)
     else:
-        stockarry = [stock for stock in argv[1:]]
-    print("stock arrary:",stockarry)
+        stockset = set([stock for stock in argv[1:]])
+    print("stock set:",stockset)
 
     timepath = r'./time.xlsx'
     mises_global_df = init_global_misesq_df(timepath)
@@ -215,7 +240,7 @@ if __name__=='__main__':
     ltimelist = []
 
 
-    for stock in stockarry:
+    for stock in stockset:
         bget,mises_stock_df,latestmv = calc_stock_finmv_df(stock)
         if bget is False:
             print("get empty DataFrame:%s" % stock)
