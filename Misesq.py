@@ -224,7 +224,7 @@ if __name__=='__main__':
     		hsstocks = argv[1]
     		hssample = 'hs300'
     else:
-        print("please run like 'python Misesq.py [*|002230]'")
+        print("please run like 'python Misesq.py [*|002230] [hsfile]'")
         exit(1)
 
 
