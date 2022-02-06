@@ -125,7 +125,7 @@ def calc_stock_finmv_df(stock):
     latestmv = ''
     bget = False
     try:
-        filefolder = r'./data/'
+        filefolder = r'./data'
         isExist = os.path.exists(filefolder)
         if not isExist:
             os.makedirs(filefolder)
@@ -138,10 +138,10 @@ def calc_stock_finmv_df(stock):
 
         # 总资产22,493,600,000.00元
         finpath, finsheet = get_akshare_stock_financial(fininpath, stock)
-        print("data of path:" + finpath + "sheetname:" + finsheet)
+        #print("data of path:" + finpath + "sheetname:" + finsheet)
         # 总市值11，392，881.8488百万
         tradepath, tradesheet = get_akshare_stock_trade(tradeinpath, stock)
-        print("data of path:" + tradepath + "sheetname:" + tradesheet)
+        #print("data of path:" + tradepath + "sheetname:" + tradesheet)
 
         stock_a_indicator_df = pd.read_excel(tradepath, tradesheet, converters={'trade_date': str, 'total_mv': str})[['trade_date', 'total_mv']]
         stock_financial_abstract_df = pd.read_excel(finpath, finsheet, converters={'截止日期': str, '资产总计': str})[['截止日期', '资产总计']]
@@ -193,7 +193,7 @@ def get_laststock_set(hs300,datadir):
         index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
         allset = set(index_stock_cons_df['品种代码'].values.tolist()[0::])
 
-    print(len(allset),allset)
+    print('沪深300个数',len(allset))
 
     existset = set()
     if os.path.exists(datadir):
@@ -216,8 +216,13 @@ if __name__=='__main__':
 
     from sys import argv
     hsstocks = ""
-    if len(argv) > 1:
+    hssample = ""
+    if len(argv) > 2:
         hsstocks = argv[1]
+        hssample = argv[2]
+    elif len(argv) > 1:
+    		hsstocks = argv[1]
+    		hssample = 'hs300'
     else:
         print("please run like 'python Misesq.py [*|002230]'")
         exit(1)
@@ -225,14 +230,14 @@ if __name__=='__main__':
 
     stockset = set()
     if hsstocks == '*':
-        hs300 = './hs300.txt';datadir = './data'
+        hs300 = hssample;datadir = './data'
         stockset,lastset = get_laststock_set(hs300, datadir)
         if len(lastset) >0 :
             print("stock data is not complete",lastset)
-            #exit(1)
+            exit(1)
     else:
         stockset = set([stock for stock in argv[1:]])
-    print("stock set:",stockset)
+    #print("stock set:",stockset)
 
     timepath = r'./time.xlsx'
     mises_global_df = init_global_misesq_df(timepath)
@@ -307,7 +312,7 @@ if __name__=='__main__':
     plt.savefig(imagepath)
 
 
-    outanalypath = r'./misesq.xlsx'
+    outanalypath = './'+ hssample +'misesq.xlsx'
     workbook = xlsxwriter.Workbook(outanalypath)
     worksheet = workbook.add_worksheet()
     bold = workbook.add_format({'bold': True})
