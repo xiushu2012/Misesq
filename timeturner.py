@@ -77,8 +77,8 @@ if __name__=='__main__':
     hs300_timedata_df = pd.DataFrame()
     for time in hs300_time_df.index.values:
         codedict = {}
-        hs300_data_time_df = hs300_data_df[hs300_data_df['变更日期'] < time][['变更日期', '成份证券代码','成份证券简称', '变动方式']]
-        for tup in hs300_data_time_df.itertuples():
+        hs300_selected_df = hs300_data_df[hs300_data_df['变更日期'] < time][['变更日期', '成份证券代码','成份证券简称', '变动方式']]
+        for tup in hs300_selected_df.itertuples():
            code = tup[2]
            count = 0 
            if tup[4]=='调入':
