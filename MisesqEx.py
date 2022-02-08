@@ -64,7 +64,7 @@ def get_mvalue_number2(tradedf,date,datecolumn,mvcolumn):
     #    if tup[0] ==  date:
     #        return float(tup[1])*10000
 
-    intdate = get_time_stamp(date)
+    intdate = get_time_stamp(date+" 00:00:00")
     for tup in zip(tradedf[datecolumn], tradedf[mvcolumn]):
         if get_time_stamp(tup[0]) <= intdate:
             return float(tup[1])*10000
@@ -91,6 +91,7 @@ def get_latest30_marketvalue(tradedf,datecolumn,mvcolumn):
 def get_time_stamp(date):
     time1 = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
     secondsFrom1970 = time.mktime(time1.timetuple())
+    #print(secondsFrom1970)
     return secondsFrom1970
 
 
@@ -120,12 +121,11 @@ def calc_history_mises_mean(row,ms_tobin_df,colum):
 
 
 
-def calc_stock_finmv_df(stock):
+def calc_stock_finmv_df(stock,filefolder):
     mises_stock_df = pd.DataFrame()
     latestmv = ''
     bget = False
     try:
-        filefolder = r'./data'
         isExist = os.path.exists(filefolder)
         if not isExist:
             os.makedirs(filefolder)
@@ -155,7 +155,7 @@ def calc_stock_finmv_df(stock):
 
             stock_financial_abstract_df[findatecol] = stock_financial_abstract_df.apply(lambda row: get_fin_date(row['截止日期']),axis=1)
             stock_financial_abstract_df[fintotalcol] = stock_financial_abstract_df.apply(lambda row: get_fin_number(row['资产总计']),axis=1)
-            stock_financial_abstract_df[mvtotalcol] = stock_financial_abstract_df.apply(lambda row: get_mvalue_number2(stock_a_indicator_df, row[findatecol],'trade_date','total_mv'), axis=1)
+            stock_financial_abstract_df[mvtotalcol] = stock_financial_abstract_df.apply(lambda row: get_mvalue_number2(stock_a_indicator_df, row['截止日期'],'trade_date','total_mv'), axis=1)
 
 
             mises_stock_df = stock_financial_abstract_df[stock_financial_abstract_df[mvtotalcol] != 0][[findatecol,fintotalcol,mvtotalcol]]
@@ -170,7 +170,7 @@ def calc_stock_finmv_df(stock):
 
 
 
-def init_global_misesq_df(timepath):
+def get_time_df(timepath):
 
     isExist = os.path.exists(timepath)
     if not isExist:
@@ -179,19 +179,34 @@ def init_global_misesq_df(timepath):
     else:
         print("time path exist:%s" % (timepath))
 
-    time_list = pd.read_excel(timepath, "analy")['date'].values.tolist()
-    time_df = pd.DataFrame(index=time_list)
+    time_df =  pd.read_excel(timepath,"analy",index_col=[0],dtype=str)
     return time_df
 
+def get_stock_finmv_file(stock,filefolder):
+    bget = False
+    try:
+        isExist = os.path.exists(filefolder)
+        if not isExist:
+            os.makedirs(filefolder)
+            print("AkShareFile:%s create" % (filefolder))
+        else:
+            print("AkShareFile:%s exist" % (filefolder))
+
+        fininpath = "%s/%s%s" % (filefolder, stock, '_fin_in.xlsx')
+        tradeinpath = "%s/%s%s" % (filefolder, stock, '_trade_in.xlsx')
+
+        get_akshare_stock_financial(fininpath, stock)
+        get_akshare_stock_trade(tradeinpath, stock)
+
+        bget = True
+    except IOError:
+        print("read error file:%s" % stock)
+    finally:
+        return bget
 
 def get_laststock_set(hs300,datadir):
-    allset = set()
-    if os.path.exists(hs300):
-        input = open(hs300,'r')
-        allset = set([stock.rstrip() for stock in input.readlines()])
-    else:
-        index_stock_cons_df = ak.index_stock_cons(index="000300") #沪深300
-        allset = set(index_stock_cons_df['品种代码'].values.tolist()[0::])
+
+    allset = set([stock for stock in hs300])
 
     print('沪深300个数',len(allset))
 
@@ -205,65 +220,48 @@ def get_laststock_set(hs300,datadir):
 
     if len(lastset) > 0:
         for stock in lastset:
-            bget,mises_stock_df,latestmv = calc_stock_finmv_df(stock)
-            if bget is False: print("get empty DataFrame:%s" % stock)
+            bget = get_stock_finmv_file(stock,datadir)
+            if bget is False: print("get empty DataFrame:%s,folder:%s" % (stock,datadir))
 
     return allset,lastset
 
 
 if __name__=='__main__':
-    #print(get_time_stamp('2021-02-24 00:00:00'))
 
-    from sys import argv
-    hsstocks = ""
-    hssample = ""
-    if len(argv) > 2:
-        hsstocks = argv[1]
-        hssample = argv[2]
-    elif len(argv) > 1:
-    		hsstocks = argv[1]
-    		hssample = 'hs300'
-    else:
-        print("please run like 'python Misesq.py [*|002230] [hsfile]'")
-        exit(1)
+    timepath = r'./timeex.xlsx'
 
+    mises_time_df = get_time_df(timepath)
+    timelist = mises_time_df.index.values
+    mises_global_df = pd.DataFrame(index=timelist)
 
-    stockset = set()
-    if hsstocks == '*':
-        hs300 = hssample;datadir = './data'
-        stockset,lastset = get_laststock_set(hs300, datadir)
-        if len(lastset) >0 :
-            print("stock data is not complete",lastset)
-            exit(1)
-    else:
-        stockset = set([stock for stock in argv[1:]])
-    #print("stock set:",stockset)
-
-    timepath = r'./time.xlsx'
-    mises_global_df = init_global_misesq_df(timepath)
     lmvlist = []
     ltimelist = []
 
+    for time in timelist:
+        print("time",time)
+        hs300 = mises_time_df.loc[time].values.tolist()
+        datadir = './dataex/' + time.split(' ')[0]
+        stockset,lastset = get_laststock_set(hs300, datadir)
+        if len(lastset) >0 :
+            print("time %s stock data is not complete,set:%s" % (time,lastset))
+            #continue
 
-    for stock in stockset:
-        bget,mises_stock_df,latestmv = calc_stock_finmv_df(stock)
-        if bget is False:
-            print("get empty DataFrame:%s" % stock)
-            continue
-        lmvlist.append(latestmv[1])
-        ltimelist.append(latestmv[0])
+        for stock in stockset:
+            bget,mises_stock_df,latestmv = calc_stock_finmv_df(stock,datadir)
+            if bget is False:
+                print("get empty DataFrame:%s" % stock)
+                continue
+            lmvlist.append(latestmv[1])
+            ltimelist.append(latestmv[0])
 
-        col_name = mises_stock_df.columns.tolist()
-        for tup in mises_stock_df.itertuples():
-            try:
-                if tup[1] in mises_global_df.index.values:
-                    #tup[1]=date,tup[2]=fin,tup[3]=market
-                    mises_global_df.loc[tup[1], col_name[1]] = tup[2]
-                    mises_global_df.loc[tup[1], col_name[2]] = tup[3]
-            except KeyError:
-                print("stock:%s,time:%s,location error" % (stock,tup[1]))
-        #for col, col_data in mises_stock_df.iteritems():
-        #    mises_global_df[col] = col_data
+            col_name = mises_stock_df.columns.tolist()
+            for tup in mises_stock_df.itertuples():
+                try:
+                    if tup[1] == time:
+                        mises_global_df.loc[tup[1], col_name[1]] = tup[2]
+                        mises_global_df.loc[tup[1], col_name[2]] = tup[3]
+                except KeyError:
+                    print("stock:%s,time:%s,location error" % (stock,tup[1]))
 
 
     #put current  on top
@@ -312,7 +310,7 @@ if __name__=='__main__':
     plt.savefig(imagepath)
 
 
-    outanalypath = './'+ hssample +'misesq.xlsx'
+    outanalypath = r'./misesq.xlsx'
     workbook = xlsxwriter.Workbook(outanalypath)
     worksheet = workbook.add_worksheet()
     bold = workbook.add_format({'bold': True})

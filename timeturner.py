@@ -42,7 +42,7 @@ def get_hs300_data_df(hspath):
 def out_put_df(result_df):
     outanalypath = './' +'timeex.xlsx'
     workbook = xlsxwriter.Workbook(outanalypath)
-    worksheet = workbook.add_worksheet()
+    worksheet = workbook.add_worksheet(name='analy')
     bold = workbook.add_format({'bold': True})
     headRows = 1
     headCols = 1

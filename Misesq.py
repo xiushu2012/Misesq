@@ -234,7 +234,7 @@ if __name__=='__main__':
         stockset,lastset = get_laststock_set(hs300, datadir)
         if len(lastset) >0 :
             print("stock data is not complete",lastset)
-            exit(1)
+            #exit(1)
     else:
         stockset = set([stock for stock in argv[1:]])
     #print("stock set:",stockset)
