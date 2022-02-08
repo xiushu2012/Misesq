@@ -63,15 +63,13 @@ def get_mvalue_number2(tradedf,date,datecolumn,mvcolumn):
     #for tup in zip(tradedf['trade_date'], tradedf['total_mv']):
     #    if tup[0] ==  date:
     #        return float(tup[1])*10000
-
-    intdate = get_time_stamp(date+" 00:00:00")
+    intdate = get_time_stamp(date)
     for tup in zip(tradedf[datecolumn], tradedf[mvcolumn]):
         if get_time_stamp(tup[0]) <= intdate:
             return float(tup[1])*10000
-
     return 0
 
-def get_latest30_marketvalue(tradedf,datecolumn,mvcolumn):
+def get_latest30_marketvalue(findf,fincolumn,tradedf,datecolumn,mvcolumn):
     count = 0
     value = 0
     days = 30
@@ -84,12 +82,12 @@ def get_latest30_marketvalue(tradedf,datecolumn,mvcolumn):
             latest = tup[0]
         if count >= days:
             break
-    return (latest,value/days)
+    return (findf[fincolumn][0],value/days)
 
 
 
 def get_time_stamp(date):
-    time1 = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+    time1 = datetime.datetime.strptime(date,"%Y-%m-%d %H:%M:%S")
     secondsFrom1970 = time.mktime(time1.timetuple())
     #print(secondsFrom1970)
     return secondsFrom1970
@@ -121,7 +119,7 @@ def calc_history_mises_mean(row,ms_tobin_df,colum):
 
 
 
-def calc_stock_finmv_df(stock,filefolder):
+def calc_stock_finmv_df(datepot,stock,filefolder):
     mises_stock_df = pd.DataFrame()
     latestmv = ''
     bget = False
@@ -143,26 +141,39 @@ def calc_stock_finmv_df(stock,filefolder):
         tradepath, tradesheet = get_akshare_stock_trade(tradeinpath, stock)
         #print("data of path:" + tradepath + "sheetname:" + tradesheet)
 
+        starttime = time.time()
+        
         stock_a_indicator_df = pd.read_excel(tradepath, tradesheet, converters={'trade_date': str, 'total_mv': str})[['trade_date', 'total_mv']]
         stock_financial_abstract_df = pd.read_excel(finpath, finsheet, converters={'截止日期': str, '资产总计': str})[['截止日期', '资产总计']]
+
+
 
         if stock_financial_abstract_df.empty or stock_a_indicator_df.empty:
             bget = False;
         else:
+        
+            #fin_date = datepot.split(' ')[0]
+            #stock_financial_abstract_df = stock_financial_abstract_df[stock_financial_abstract_df['截止日期']< fin_date]
+            stock_a_indicator_df = stock_a_indicator_df[stock_a_indicator_df['trade_date'] <= datepot]
+            
             findatecol =  stock  +  'date'
             fintotalcol = stock  + 'finance'
             mvtotalcol =  stock  +  'maket'
 
             stock_financial_abstract_df[findatecol] = stock_financial_abstract_df.apply(lambda row: get_fin_date(row['截止日期']),axis=1)
             stock_financial_abstract_df[fintotalcol] = stock_financial_abstract_df.apply(lambda row: get_fin_number(row['资产总计']),axis=1)
-            stock_financial_abstract_df[mvtotalcol] = stock_financial_abstract_df.apply(lambda row: get_mvalue_number2(stock_a_indicator_df, row['截止日期'],'trade_date','total_mv'), axis=1)
+            stock_financial_abstract_df[mvtotalcol] = stock_financial_abstract_df.apply(lambda row: get_mvalue_number2(stock_a_indicator_df, row[findatecol],'trade_date','total_mv'), axis=1)
 
 
             mises_stock_df = stock_financial_abstract_df[stock_financial_abstract_df[mvtotalcol] != 0][[findatecol,fintotalcol,mvtotalcol]]
             #滤除>50 的数据,民生2008年9月数据可能有问题
             mises_stock_df = mises_stock_df[(mises_stock_df[mvtotalcol] / mises_stock_df[fintotalcol]) < 50 ][[findatecol,fintotalcol,mvtotalcol]]
-            latestmv = get_latest30_marketvalue(stock_a_indicator_df,'trade_date','total_mv')
+            latestmv = get_latest30_marketvalue(stock_financial_abstract_df,fintotalcol,stock_a_indicator_df,'trade_date','total_mv')
             bget = True;
+        
+        endtime = time.time()
+        print("Time(s) read excel",endtime-starttime)
+
     except IOError:
         print("read error file:%s" % stock)
     finally:
@@ -218,74 +229,22 @@ def get_laststock_set(hs300,datadir):
     lastset = allset - existset
 
 
+    getset = set()
     if len(lastset) > 0:
         for stock in lastset:
             bget = get_stock_finmv_file(stock,datadir)
-            if bget is False: print("get empty DataFrame:%s,folder:%s" % (stock,datadir))
+            if bget is False: 
+                print("get DataFrame fail:%s,folder:%s" % (stock,datadir))
+            else:
+                print("get DataFrame ok:%s,folder:%s" % (stock,datadir))
+                getset.add(stock)
 
+    lastset = lastset - getset
+    
     return allset,lastset
 
 
-if __name__=='__main__':
-
-    timepath = r'./timeex.xlsx'
-
-    mises_time_df = get_time_df(timepath)
-    timelist = mises_time_df.index.values
-    mises_global_df = pd.DataFrame(index=timelist)
-
-    lmvlist = []
-    ltimelist = []
-
-    for time in timelist:
-        print("time",time)
-        hs300 = mises_time_df.loc[time].values.tolist()
-        datadir = './dataex/' + time.split(' ')[0]
-        stockset,lastset = get_laststock_set(hs300, datadir)
-        if len(lastset) >0 :
-            print("time %s stock data is not complete,set:%s" % (time,lastset))
-            #continue
-
-        for stock in stockset:
-            bget,mises_stock_df,latestmv = calc_stock_finmv_df(stock,datadir)
-            if bget is False:
-                print("get empty DataFrame:%s" % stock)
-                continue
-            lmvlist.append(latestmv[1])
-            ltimelist.append(latestmv[0])
-
-            col_name = mises_stock_df.columns.tolist()
-            for tup in mises_stock_df.itertuples():
-                try:
-                    if tup[1] == time:
-                        mises_global_df.loc[tup[1], col_name[1]] = tup[2]
-                        mises_global_df.loc[tup[1], col_name[2]] = tup[3]
-                except KeyError:
-                    print("stock:%s,time:%s,location error" % (stock,tup[1]))
-
-
-    #put current  on top
-    top_row = mises_global_df.iloc[[-1]]
-    columnsize = top_row.shape[1]
-    for i in range(1,columnsize,2):
-        top_row = top_row.replace(top_row.iloc[0,i],lmvlist[int(i/2)])
-    #mises_global_df = pd.concat([top_row, mises_global_df])
-    top_row.index = [ltimelist[0]]
-    mises_global_df = mises_global_df.append(top_row)
-
-    MisesqIndex = '米塞斯指数'
-    mises_global_df[MisesqIndex] = mises_global_df.apply(lambda row: calc_value_tobinsq(row), axis=1)
-    mises_mean = calc_global_mises_mean(mises_global_df,MisesqIndex)
-
-    mises_global_df['全局均值']   = mises_global_df.apply(lambda row: mises_mean, axis=1)
-    mises_global_df['全局均值比'] = mises_global_df.apply(lambda row: row[MisesqIndex]/mises_mean, axis=1)
-
-    mises_global_df['历史均值'] = mises_global_df.apply(lambda row: calc_history_mises_mean(row[MisesqIndex],mises_global_df,MisesqIndex), axis=1)
-    mises_global_df['历史均值比'] = mises_global_df.apply(lambda row: row[MisesqIndex]/row['历史均值'], axis=1)
-    mises_global_df[np.isnan(mises_global_df)] = 0.;
-
-
-
+def out_put_dataframe(mises_global_df):
     x_data  =  [ dt[2:] for dt in mises_global_df.index.values.tolist() ]
     y_data  =  mises_global_df['全局均值比'].tolist()
     y_data2 = mises_global_df['历史均值比'].tolist()
@@ -329,3 +288,83 @@ if __name__=='__main__':
     workbook.close()
 
     print("mises q value out in :" + outanalypath)
+
+
+if __name__=='__main__':
+
+    timepath = r'./timeex.xlsx'
+
+    mises_time_df = get_time_df(timepath)
+    potlist = mises_time_df.index.values
+    mises_global_df = pd.DataFrame(index=potlist)
+
+
+
+    starttime = time.time()
+    for pot in potlist[0:-1]:
+        print("time pot:",pot)
+        hs300 = mises_time_df.loc[pot].values.tolist()
+        datadir = './dataex/' + pot.split(' ')[0]
+        stockset,lastset = get_laststock_set(hs300, datadir)
+        if len(lastset) >0 :
+            print("time %s stock data is not complete,set:%s" % (pot,lastset))
+            #continue
+
+        for stock in stockset:
+            bget,mises_stock_df,latestmv = calc_stock_finmv_df(pot,stock,datadir)
+            if bget is False:
+                print("get empty DataFrame:%s" % stock)
+                continue
+
+            col_name = mises_stock_df.columns.tolist()
+            for tup in mises_stock_df.itertuples():
+                try:
+                    if tup[1] == pot:
+                        mises_global_df.loc[tup[1], col_name[1]] = tup[2]
+                        mises_global_df.loc[tup[1], col_name[2]] = tup[3]
+                except KeyError:
+                    print("stock:%s,time:%s,location error" % (stock,tup[1]))
+
+
+
+    for potlast in potlist[-1:]:
+        print("time potlast:",potlast)
+        hs300 = mises_time_df.loc[potlast].values.tolist()
+        datadir = './dataex/' + potlast.split(' ')[0]
+        stockset,lastset = get_laststock_set(hs300, datadir)
+        if len(lastset) >0 :
+            print("time %s stock data is not complete,set:%s" % (potlast,lastset))
+            #continue
+
+        for stock in stockset:
+            bget,mises_stock_df,latestmv = calc_stock_finmv_df(pot,stock,datadir)
+            if bget is False:
+                print("get empty DataFrame:%s" % stock)
+                continue
+            
+            fintotalcol = stock  + 'finance'
+            mvtotalcol =  stock  +  'maket'
+
+            try:
+               mises_global_df.loc[potlast, fintotalcol] = latestmv[0]
+               mises_global_df.loc[potlast, mvtotalcol] = latestmv[1]
+            except KeyError:
+               print("stock:%s,time:%s,location error" % (stock,tup[1]))
+
+    endtime = time.time()
+    print("Time(s) used",endtime-starttime)
+
+    MisesqIndex = '米塞斯指数'
+    mises_global_df[MisesqIndex] = mises_global_df.apply(lambda row: calc_value_tobinsq(row), axis=1)
+    mises_mean = calc_global_mises_mean(mises_global_df,MisesqIndex)
+
+    mises_global_df['全局均值']   = mises_global_df.apply(lambda row: mises_mean, axis=1)
+    mises_global_df['全局均值比'] = mises_global_df.apply(lambda row: row[MisesqIndex]/mises_mean, axis=1)
+
+    mises_global_df['历史均值'] = mises_global_df.apply(lambda row: calc_history_mises_mean(row[MisesqIndex],mises_global_df,MisesqIndex), axis=1)
+    mises_global_df['历史均值比'] = mises_global_df.apply(lambda row: row[MisesqIndex]/row['历史均值'], axis=1)
+    mises_global_df[np.isnan(mises_global_df)] = 0.;
+
+    out_put_dataframe(mises_global_df)
+
+
